@@ -79,8 +79,11 @@ def get_tournament_results(tournament_id: int) -> requests.Response:
     Returns:
         requests.Response: Response from the IFPA API
     """
-    url = f'https://api.ifpapinball.com/tournament/{tournament_id}/results?api_key={api_key}'
-    return requests.get(url, timeout=10)
+    payload = {
+        'api_key': api_key,
+    }
+    url = f'https://api.ifpapinball.com/tournament/{tournament_id}/results'
+    return requests.get(url, params=payload, timeout=10)
 
 
 response = get_tournaments()
@@ -119,12 +122,22 @@ if response.ok:
     print(f'Number of tournaments: {json["total_results"]}')
     print(f'Number of unique players: {len(players)}')
     print(
-        f'{"Rank":<5}{"Player":25}{"Events":>8}{"Points":>10}{"Avg":>8}    (Total Events - Total Points)'
+        f'{"Rank":<5}'
+        f'{"Player":25}'
+        f'{"Events":>8}'
+        f'{"Points":>10}'
+        f'{"Avg":>8}    '
+        '(Total Events - Total Points)'
     )
     i = 1
     for v in ordered.values():
         print(
-            f'{i:<5}{v["name"]:25}{v["counted"]:8}{round(v["total"], 2):10}{round(v["total"] / v["counted"], 2):>8}    ({len(v["points"])} - {round(sum(v["points"]), 2)})'
+            f'{i:<5}'
+            f'{v["name"]:25}'
+            f'{v["counted"]:8}'
+            f'{round(v["total"], 2):10}'
+            f'{round(v["total"] / v["counted"], 2):>8}    '
+            f'({len(v["points"])} - {round(sum(v["points"]), 2)})'
         )
         i += 1
         if i > 100:
