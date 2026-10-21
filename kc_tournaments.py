@@ -32,6 +32,13 @@ parser.add_argument(
     type=int,
     default=20,
 )
+parser.add_argument(
+    '-t',
+    '--top',
+    help='Top X players to print out. x < 1 will print all players',
+    type=int,
+    default=100
+)
 args = parser.parse_args()
 
 try:
@@ -130,7 +137,7 @@ if response.ok:
         '(Total Events - Total Points)'
     )
     i = 1
-    for v in ordered.values():
+    for i, v in enumerate(ordered.values()):
         print(
             f'{i:<5}'
             f'{v["name"]:25}'
@@ -139,8 +146,7 @@ if response.ok:
             f'{round(v["total"] / v["counted"], 2):>8}    '
             f'({len(v["points"])} - {round(sum(v["points"]), 2)})'
         )
-        i += 1
-        if i > 100:
+        if args.top > 0 and i >= args.top:
             break
 
 with open('mycache.pickle', 'wb') as f:
