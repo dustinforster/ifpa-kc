@@ -4,7 +4,7 @@ import argparse
 import pickle
 import time
 from collections import OrderedDict
-from datetime import date, datetime
+from datetime import date
 
 import cachetools
 import requests
@@ -23,7 +23,7 @@ parser.add_argument(
     '--year',
     help='The year to generate the rankings for',
     type=int,
-    default=datetime.now().year,
+    default=date.today().year,
 )
 parser.add_argument(
     '-m',
@@ -35,7 +35,7 @@ parser.add_argument(
 parser.add_argument(
     '-t',
     '--top',
-    help='Top X players to print out. x < 1 will print all players',
+    help='Top X players to print out; X < 1 will print all players',
     type=int,
     default=100,
 )
@@ -125,7 +125,11 @@ if response.ok:
     ordered = OrderedDict(
         sorted(players.items(), reverse=True, key=lambda item: item[1]['total'])
     )
-    print(f'KC Standings ({date.today()}):')
+    timestamp = date.today()
+    if year != timestamp.year:
+        timestamp = year
+
+    print(f'KC Standings ({timestamp}):')
     print(f'Number of tournaments: {json["total_results"]}')
     print(f'Number of unique players: {len(players)}')
     print(
@@ -134,7 +138,7 @@ if response.ok:
         f'{"Events":>8}'
         f'{"Points":>10}'
         f'{"Avg":>8}    '
-        '(Total Events - Total Points)'
+        '(Total Events - Points)'
     )
     i = 1
     for i, v in enumerate(ordered.values(), start=1):
