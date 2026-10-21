@@ -1,45 +1,100 @@
-import requests
+"""Module for creating a KC-based IFPA ranking."""
+
+import argparse
+import pickle
 import time
 from collections import OrderedDict
+from datetime import datetime
+
 import cachetools
-import pickle
+import requests
+
+parser = argparse.ArgumentParser()
+parser.add_argument('apikey', help='IFPA API key to access IFPA data')
+parser.add_argument(
+    '-r',
+    '--range',
+    help='Range in miles to include tournaments from city center',
+    type=int,
+    default=75,
+)
+parser.add_argument(
+    '-y',
+    '--year',
+    help='The year to generate the rankings for',
+    type=int,
+    default=datetime.now().year,
+)
+parser.add_argument(
+    '-m',
+    '--max',
+    help='The maximum number of tournaments that can affect ranking',
+    type=int,
+    default=20,
+)
+args = parser.parse_args()
 
 try:
     with open('mycache.pickle', 'rb') as f:
         cache = pickle.load(f)
 except FileNotFoundError:
-    cache = {} # or cachetools.LRUCache(maxsize=5) or whatever you want
+    cache = {}
 
-api_key = ''
-year = 2026
-radius = 75
-max_results = 20
+api_key = args.apikey
+year = args.year
+radius = args.range
+max_results = args.max
 startDate = time.strptime(f'{year}-01-01', '%Y-%m-%d')
 
-def get_tournaments():
-    url = f'https://api.ifpapinball.com/tournament/search?start_date={year - 1}-10-01&end_date={year}-12-31&rank_type=MAIN&total=200&only_with_results=Y&latitude=39.099724&longitude=-94.578331&radius={radius}&distance_unit=m%20for%20Miles&api_key={api_key}'
-    response = requests.get(url)
-    return response
+
+def get_tournaments() -> requests.Response:
+    """Get the tournaments from the IFPA API
+
+    Returns:
+        requests.Response: Response from the IFPA API
+    """
+    payload = {
+        'start_date': f'{year - 1}-10-01',
+        'end_date': f'{year}-12-31',
+        'rank_type': 'MAIN',
+        'total': 200,
+        'only_with_results': 'Y',
+        'latitude': 39.099724,
+        'longitude': -94.578331,
+        'radius': radius,
+        'distance_unit': 'm for Miles',
+        'api_key': api_key,
+    }
+    url = 'https://api.ifpapinball.com/tournament/search'
+    return requests.get(url, params=payload, timeout=10)
+
 
 @cachetools.cached(cache)
-def get_tournament_results(id):
-    url = f'https://api.ifpapinball.com/tournament/{id}/results?api_key={api_key}'
-    response = requests.get(url)
-    return response
+def get_tournament_results(tournament_id: int) -> requests.Response:
+    """Get the tournament results for the given tournament
+
+    Args:
+        tournament_id (integer): Tournament id to query
+
+    Returns:
+        requests.Response: Response from the IFPA API
+    """
+    url = f'https://api.ifpapinball.com/tournament/{tournament_id}/results?api_key={api_key}'
+    return requests.get(url, timeout=10)
+
 
 response = get_tournaments()
 
-if (response.ok):
+if response.ok:
     json = response.json()
     players = {}
     for tournament in json['tournaments']:
         if time.strptime(tournament['event_end_date'], '%Y-%m-%d') < startDate:
-            continue;
-        id = tournament['tournament_id']
+            continue
         tournament_name = tournament['tournament_name']
 
-        resultsResponse = get_tournament_results(id)
-        if (resultsResponse.ok):
+        resultsResponse = get_tournament_results(tournament['tournament_id'])
+        if resultsResponse.ok:
             results = resultsResponse.json()
             if 'results' not in results:
                 print(f'No results for {tournament_name}')
@@ -52,19 +107,25 @@ if (response.ok):
                 players[player_id]['points'].append(float(result['points']))
         else:
             print(f'Failed to get results for {tournament_name}')
-    for k, v in players.items():
+    for v in players.values():
         v['points'].sort(reverse=True)
         v['counted'] = len(v['points'][:max_results])
         v['total'] = sum(v['points'][:max_results])
 
-    ordered = OrderedDict(sorted(players.items(), reverse=True, key=lambda item: item[1]['total']))
+    ordered = OrderedDict(
+        sorted(players.items(), reverse=True, key=lambda item: item[1]['total'])
+    )
     print('KC Results:')
-    print(f'Number of tournaments: {json['total_results']}')
+    print(f'Number of tournaments: {json["total_results"]}')
     print(f'Number of unique players: {len(players)}')
-    print(f'{'Rank':<5}{'Player':25}{'Events':>8}{'Points':>10}    (Total Events - Total Points)')
+    print(
+        f'{"Rank":<5}{"Player":25}{"Events":>8}{"Points":>10}{"Avg":>8}    (Total Events - Total Points)'
+    )
     i = 1
-    for k, v in ordered.items():
-        print(f'{i:<5}{v['name']:25}{v['counted']:8}{round(v['total'],2):10}    ({len(v['points'])} - {round(sum(v['points']), 2)})')
+    for v in ordered.values():
+        print(
+            f'{i:<5}{v["name"]:25}{v["counted"]:8}{round(v["total"], 2):10}{round(v["total"] / v["counted"], 2):>8}    ({len(v["points"])} - {round(sum(v["points"]), 2)})'
+        )
         i += 1
         if i > 100:
             break
