@@ -4,7 +4,7 @@ import argparse
 import pickle
 import time
 from collections import OrderedDict
-from datetime import datetime
+from datetime import date, datetime
 
 import cachetools
 import requests
@@ -37,7 +37,7 @@ parser.add_argument(
     '--top',
     help='Top X players to print out. x < 1 will print all players',
     type=int,
-    default=100
+    default=100,
 )
 args = parser.parse_args()
 
@@ -125,7 +125,7 @@ if response.ok:
     ordered = OrderedDict(
         sorted(players.items(), reverse=True, key=lambda item: item[1]['total'])
     )
-    print('KC Results:')
+    print(f'KC Standings ({date.today()}):')
     print(f'Number of tournaments: {json["total_results"]}')
     print(f'Number of unique players: {len(players)}')
     print(
@@ -137,7 +137,7 @@ if response.ok:
         '(Total Events - Total Points)'
     )
     i = 1
-    for i, v in enumerate(ordered.values()):
+    for i, v in enumerate(ordered.values(), start=1):
         print(
             f'{i:<5}'
             f'{v["name"]:25}'
@@ -146,7 +146,7 @@ if response.ok:
             f'{round(v["total"] / v["counted"], 2):>8}    '
             f'({len(v["points"])} - {round(sum(v["points"]), 2)})'
         )
-        if args.top > 0 and i >= args.top:
+        if (args.top > 0) and (i >= args.top):
             break
 
 with open('mycache.pickle', 'wb') as f:
