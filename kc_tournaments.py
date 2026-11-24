@@ -39,6 +39,12 @@ parser.add_argument(
     type=int,
     default=100,
 )
+parser.add_argument(
+    '-w',
+    '--women',
+    action=argparse.BooleanOptionalAction,
+    help="Get women's rankings",
+)
 args = parser.parse_args()
 
 try:
@@ -52,6 +58,7 @@ year = args.year
 radius = args.range
 max_results = args.max
 startDate = time.strptime(f'{year}-01-01', '%Y-%m-%d')
+women = args.women
 
 
 def get_tournaments() -> requests.Response:
@@ -63,7 +70,7 @@ def get_tournaments() -> requests.Response:
     payload = {
         'start_date': f'{year - 1}-10-01',
         'end_date': f'{year}-12-31',
-        'rank_type': 'MAIN',
+        'rank_type': 'WOMEN' if women else 'MAIN',
         'total': 200,
         'only_with_results': 'Y',
         'latitude': 39.099724,
